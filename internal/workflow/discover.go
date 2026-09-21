@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const nestedWorkflowPath = "**/.github/workflows"
+
 func DiscoverWorkflowFiles(paths []string) ([]string, error) {
 	seen := make(map[string]struct{})
 	var files []string
@@ -34,6 +36,13 @@ func DiscoverWorkflowFiles(paths []string) ([]string, error) {
 }
 
 func discoverWorkflowFiles(path string) ([]string, error) {
+	// Config paths use slash-separated repository-relative paths. Normalize
+	// separators before cleaning so the conventional recursive path remains
+	// recognizable on Windows, where filepath.Clean turns it into
+	// "**\\.github\\workflows".
+	if strings.ReplaceAll(path, `\`, "/") == nestedWorkflowPath {
+		return discoverNestedWorkflowFiles(".")
+	}
 	var files []string
 
 	err := filepath.WalkDir(path, func(current string, entry fs.DirEntry, err error) error {
@@ -61,6 +70,51 @@ func discoverWorkflowFiles(path string) ([]string, error) {
 		return nil, nil
 	}
 
+	return files, err
+}
+
+// discoverNestedWorkflowFiles finds conventional GitHub workflow directories
+// below a repository root. It deliberately matches only directories named
+// .github/workflows instead of treating every YAML file in the repository as a
+// workflow.
+func discoverNestedWorkflowFiles(root string) ([]string, error) {
+	var files []string
+	err := filepath.WalkDir(root, func(current string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		name := entry.Name()
+		if name == "node_modules" || name == "vendor" {
+			return filepath.SkipDir
+		}
+		// Skip .git and all hidden directories except .github, which is where
+		// workflow files live. This avoids walking into dev-environment caches
+		// like .gomodcache, .gocache, .gopath, .cache, etc.
+		// The root of the walk (current == root) is exempt so that we do not
+		// skip the entire tree when WalkDir starts from ".".
+		if current != root && strings.HasPrefix(name, ".") && name != ".github" {
+			return filepath.SkipDir
+		}
+		if entry.Name() != "workflows" || filepath.Base(filepath.Dir(current)) != ".github" {
+			return nil
+		}
+
+		matches, err := discoverWorkflowFiles(current)
+		if err != nil {
+			return err
+		}
+		files = append(files, matches...)
+		return filepath.SkipDir
+	})
+	if err != nil && isNotExist(err) {
+		return nil, nil
+	}
 	return files, err
 }
 

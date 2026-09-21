@@ -67,14 +67,19 @@ type UpgradePolicy struct {
 
 func Default() Config {
 	return Config{
-		Source:         "defaults",
-		WorkflowPaths:  []string{".github/workflows"},
+		Source: "defaults",
+		// GitHub Action repositories commonly keep workflow fixtures below the
+		// action package (for example action/test/integration/.github/workflows).
+		// The nested-workflow sentinel is intentionally narrower than scanning
+		// the whole repository, which could include dependency metadata such as
+		// node_modules/.travis.yml.
+		WorkflowPaths:  []string{".github/workflows", "**/.github/workflows"},
 		Cooldown:       7 * 24 * time.Hour,
 		CooldownSource: DefaultCooldownSource,
 		Updates: UpdatesConfig{
 			Tags:              "track",
-			Branches:          "deny",
-			Unpinned:          "deny",
+			Branches:          "track",
+			Unpinned:          "latest-release",
 			ReusableWorkflows: true,
 		},
 		Ignore: IgnoreConfig{

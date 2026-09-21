@@ -4,11 +4,13 @@ author: Mohamed Elashri
 
 inputs:
   mode:
-    description: Operation to run (check, plan, apply, upgrade, or setup)
+    description: |
+      Operation to run: check, plan, apply, upgrade, or setup.
+      Defaults to apply when write is true (produces a PR-ready write), otherwise check.
     required: false
-    default: check
+    default: ""
   config:
-    description: Sanad configuration path, relative to working-directory
+    description: Sanad configuration path, relative to working-directory. The file may be absent to use built-in defaults (branches and unpinned actions are automatically tracked).
     required: false
     default: .sanad.toml
   working-directory:
@@ -16,11 +18,11 @@ inputs:
     required: false
     default: .
   fresh:
-    description: Resolve tracked refs during check
+    description: Resolve tracked refs during check (ignored for other modes)
     required: false
     default: "false"
   strict:
-    description: Fail check on cooldown-pending candidates; implies fresh
+    description: Fail check on cooldown-pending candidates; implies fresh (ignored for other modes)
     required: false
     default: "false"
   write:

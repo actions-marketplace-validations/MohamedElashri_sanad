@@ -93,9 +93,9 @@ func TestPlanTableShowsDecisionsWithoutModifyingWorkflows(t *testing.T) {
 	for _, want := range []string{
 		"Summary:",
 		"6 actions found",
-		"1 updates available",
+		"2 updates available",
 		"1 pending cooldown",
-		"2 policy violations",
+		"1 policy violations",
 		"2 skipped",
 		"FILE",
 		"ACTION",
@@ -111,10 +111,10 @@ func TestPlanTableShowsDecisionsWithoutModifyingWorkflows(t *testing.T) {
 		"pending-cooldown",
 		"cooldown-active",
 		"owner/repo",
-		"error-branch-denied",
-		"branch-denied",
+		"update",
+		"update-available",
 		"owner/unpinned",
-		"error-unpinned",
+		"error-unresolved",
 		"alpine:3.20",
 		"skip-docker-action",
 		"./.github/actions/local",
@@ -331,7 +331,7 @@ func TestPlanWritesPullRequestBody(t *testing.T) {
 		"222222222222",
 		"## Policy Violations",
 		"owner/unpinned",
-		"error-unpinned",
+		"error-unresolved",
 	} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("PR body missing %q:\n%s", want, text)
@@ -424,7 +424,16 @@ func TestPlanFollowsUpdatedLogicalRefCommentForRenovateInterop(t *testing.T) {
 func TestPlanPinnedSHAWithoutMetadataIsUnmanaged(t *testing.T) {
 	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	currentSHA := strings.Repeat("1", 40)
-	installPlanTestResolver(t, fakePlanResolver{}, now)
+	installPlanTestResolver(t, fakePlanResolver{
+		"actions/checkout@latest-release": {
+			Owner:      "actions",
+			Repo:       "checkout",
+			Ref:        "v5.0.0",
+			SHA:        strings.Repeat("5", 40),
+			Kind:       githubresolver.KindTag,
+			CommitTime: now.Add(-15 * 24 * time.Hour),
+		},
+	}, now)
 
 	workflows := filepath.Join(t.TempDir(), ".github", "workflows")
 	path := filepath.Join(workflows, "ci.yml")
@@ -438,14 +447,14 @@ func TestPlanPinnedSHAWithoutMetadataIsUnmanaged(t *testing.T) {
 
 	report := executePlanJSON(t, workflows)
 	action := report.Files[0].Actions[0]
-	if action.Decision != "unchanged" {
-		t.Fatalf("Decision = %q, want unchanged", action.Decision)
+	if action.Decision != "update" {
+		t.Fatalf("Decision = %q, want update", action.Decision)
 	}
 	if action.CurrentSHA != currentSHA {
 		t.Fatalf("CurrentSHA = %q, want %q", action.CurrentSHA, currentSHA)
 	}
-	if action.LogicalRef != "" {
-		t.Fatalf("LogicalRef = %q, want empty", action.LogicalRef)
+	if action.LogicalRef != "v5.0.0" {
+		t.Fatalf("LogicalRef = %q, want v5.0.0", action.LogicalRef)
 	}
 }
 
@@ -521,7 +530,16 @@ func TestPlanUsesInlineCommentWhenLockfileRefDrifts(t *testing.T) {
 func TestPlanTreatsActionMismatchWithoutCommentAsUnmanaged(t *testing.T) {
 	now := time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC)
 	currentSHA := strings.Repeat("1", 40)
-	installPlanTestResolver(t, fakePlanResolver{}, now)
+	installPlanTestResolver(t, fakePlanResolver{
+		"actions/setup-go@latest-release": {
+			Owner:      "actions",
+			Repo:       "setup-go",
+			Ref:        "v5.0.0",
+			SHA:        strings.Repeat("5", 40),
+			Kind:       githubresolver.KindTag,
+			CommitTime: now.Add(-15 * 24 * time.Hour),
+		},
+	}, now)
 
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
@@ -570,10 +588,10 @@ func TestPlanTreatsActionMismatchWithoutCommentAsUnmanaged(t *testing.T) {
 
 	report := executePlanJSON(t, workflows)
 	action := report.Files[0].Actions[0]
-	if action.Decision != "unchanged" {
-		t.Fatalf("Decision = %q, want unchanged", action.Decision)
+	if action.Decision != "update" {
+		t.Fatalf("Decision = %q, want update", action.Decision)
 	}
-	if action.LogicalRef != "" || action.MetadataSource != "" {
+	if action.LogicalRef != "v5.0.0" || action.MetadataSource != "" {
 		t.Fatalf("action mismatch without inline metadata should be unmanaged, got ref=%q source=%q", action.LogicalRef, action.MetadataSource)
 	}
 }

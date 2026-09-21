@@ -28,9 +28,9 @@ Validate and inspect the merged configuration with `sanad config validate` and `
 
 `updates.tags = "track"` means refs like `actions/checkout@v4` are resolved, pinned, and tracked through metadata.
 
-`updates.branches = "deny"` is the default because branches move more often than release tags. Interactive apply can pin a branch head and optionally persist branch tracking in config.
+`updates.branches = "track"` is the default, ensuring that branches (like `@main`) are seamlessly resolved to commits and continuously tracked for updates.
 
-`updates.unpinned = "deny"` is the default. Set it to `default-branch` or `latest-release` only when your repository policy intentionally allows Sanad to discover a target for unpinned `owner/repo` actions.
+`updates.unpinned = "latest-release"` is the default, allowing Sanad to automatically discover the best target for completely unpinned `owner/repo` actions without requiring manual configuration.
 
 `comments.write = false` disables inline `sanad: ref=...` comments. The lockfile remains the metadata source.
 

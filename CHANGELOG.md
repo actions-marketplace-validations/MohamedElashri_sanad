@@ -2,27 +2,77 @@
 
 All notable changes to Sanad are documented here.
 
-## 0.3.5 - Unreleased
+## 0.3.11 - 2026-09-17
+
+### Changed 
+- The README.md is updated to focus on the action usage (needed a new release for that)
+
+## 0.3.10 - 2026-09-17
+
+### Fixed
+- Fix action behavior to align with the new sanad CLI workflow
+
+
+## 0.3.9 - 2026-09-17
+
+### Fixed 
+- Fix compiled bundle that bakes package.json's version at build time.
+
+## 0.3.8 - 2026-09-17
+
+### Fixed
+
+- Fixed nested workflow discovery (`**/.github/workflows`) scanning into hidden directories such as `.gomodcache`, `.gocache`, `.gopath`, and `.cache` that are kept at the repository root. All hidden directories except `.github` are now skipped, matching the intent of the glob.
+- Release CI now validates the `VERSION` file against the git tag in addition to `action/package.json`, ensuring all three sources stay in sync.
+
+## 0.3.7 - 2026-09-17
+
+### Added
+
+- Added branch tracking support, allowing you to track branches in addition to tags and unpinned actions.
+
+### Changed
+
+- Updated default branch policy from `deny` to `track`.
+- Updated default unpinned action policy from `latest` to `latest-release`.
+
+## 0.3.6 - 2026-09-15
+
+### Added
+
+- Added support for discovering conventional nested `.github/workflows` directories, allowing action repositories to scan workflow fixtures under directories such as `action/test/integration` without scanning unrelated YAML files.
+- Added `make update` to update Go dependencies and tidy the module files.
+
+### Changed
+
+- Expanded the default workflow scope to include `.github/workflows` directories nested in the repository, with matching configuration and documentation updates.
+- Updated Go dependencies, including `golang.org/x/oauth2`, `github.com/google/go-querystring`, and `github.com/spf13/pflag`.
+
+### Fixed
+
+- Made nested workflow discovery handle both slash and backslash path separators on Windows.
+
+## 0.3.5 - 2026-08-29
 
 ### Fixed
 
 - Use a unique Marketplace display name: `Sanad Dependency Guard`.
 
-## 0.3.4 - Unreleased
+## 0.3.4 - 2026-08-29
 
 ### Fixed
 
 - Align the action package version with the release tag so release validation cannot publish a mismatched action.
 - Verify published release state without requiring GitHub artifact attestations that GoReleaser does not generate.
 
-## 0.3.1 - Unreleased
+## 0.3.1 - 2026-08-29
 
 ### Fixed
 
 - Kept the Node action's CommonJS dependencies exact and verified them during CI and release builds.
 - Added explicit release-state diagnostics so mutable releases fail before the action can consume them.
 
-## 0.3.0 - Unreleased
+## 0.3.0 - 2026-08-29
 
 ### Added
 

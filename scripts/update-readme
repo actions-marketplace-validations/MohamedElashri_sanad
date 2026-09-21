@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# update-readme: Stamp current action SHAs into README.md and all doc pages.
+#
+# Two classes of placeholder (or previously-stamped SHAs) are replaced:
+#
+#   MohamedElashri/sanad[@sha]         → HEAD commit SHA
+#   actions/checkout[@sha] (no comment) → the SHA sanad manages in ci.yml
+#
+# Runs automatically as part of `make sync-version` so every file is
+# up-to-date before you commit and tag.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+CI_WORKFLOW="$REPO_ROOT/.github/workflows/ci.yml"
+
+# The sanad SHA: HEAD becomes the release tag commit.
+SANAD_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+
+# The actions/checkout SHA: already managed by sanad in ci.yml.
+CHECKOUT_SHA="$(grep -m1 'actions/checkout@' "$CI_WORKFLOW" | grep -oP '(?<=@)[a-f0-9]{40}')"
+
+if [[ -z "$CHECKOUT_SHA" ]]; then
+  echo "error: could not find a pinned actions/checkout SHA in $CI_WORKFLOW" >&2
+  exit 1
+fi
+
+stamp_file() {
+  local path="$1"
+  python3 - "$path" "$SANAD_SHA" "$CHECKOUT_SHA" << 'PY'
+import re, sys
+path, sanad_sha, checkout_sha = sys.argv[1], sys.argv[2], sys.argv[3]
+
+with open(path) as f:
+    content = f.read()
+
+sha_re = r'(?:[a-f0-9]{40}|SANAD_FULL_COMMIT_SHA)'
+checkout_re = r'(?:[a-f0-9]{40}|CHECKOUT_FULL_SHA)'
+
+# Replace all MohamedElashri/sanad@<sha> references (including reusable workflow paths).
+content = re.sub(
+    r'(MohamedElashri/sanad(?:/.github/workflows/[^\s@]+)?)@' + sha_re,
+    lambda m: f'{m.group(1)}@{sanad_sha}',
+    content
+)
+
+# Replace actions/checkout@<sha> only when there is NO inline sanad comment
+# (those are already managed by sanad itself and should not be overwritten).
+content = re.sub(
+    r'(actions/checkout@)' + checkout_re + r'(?!\s*#)',
+    lambda m: f'{m.group(1)}{checkout_sha}',
+    content
+)
+
+with open(path, 'w') as f:
+    f.write(content)
+PY
+  echo "  stamped  $path"
+}
+
+# Files to stamp: README + all doc pages.
+FILES=(
+  "$REPO_ROOT/README.md"
+)
+
+# Add all .md files under docs/content/
+while IFS= read -r -d '' f; do
+  FILES+=("$f")
+done < <(find "$REPO_ROOT/docs/content" -name "*.md" -print0)
+
+for f in "${FILES[@]}"; do
+  stamp_file "$f"
+done
+
+echo ""
+echo "  SANAD_FULL_COMMIT_SHA → ${SANAD_SHA}"
+echo "  CHECKOUT_FULL_SHA     → ${CHECKOUT_SHA}"

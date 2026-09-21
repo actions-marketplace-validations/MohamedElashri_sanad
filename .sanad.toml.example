@@ -1,4 +1,4 @@
-workflow_paths = [".github/workflows"]
+workflow_paths = [".github/workflows", "**/.github/workflows"]
 
 cooldown = "7d"
 cooldown_source = "source"

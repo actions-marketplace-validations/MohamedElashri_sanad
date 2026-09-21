@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/MohamedElashri/sanad/internal/config"
 	"github.com/spf13/cobra"
@@ -48,7 +49,16 @@ func NewRootCommand() *cobra.Command {
 		SilenceErrors: true,
 		Args:          cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return withRepositoryRoot(opts, func() error { return runCheck(cmd, opts, &checkOptions{}, nil) })
+			startOpts := &applyOptions{}
+			return withRepositoryRoot(opts, func() error {
+				if isTerminal(cmd.InOrStdin()) {
+					startOpts.write = true
+					startOpts.interactive = true
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), "Using built-in defaults unless .sanad.toml overrides them.")
+				fmt.Fprintln(cmd.OutOrStdout(), "Scanning workflows and preparing the initial pins...")
+				return runApply(cmd, opts, startOpts, defaultPlanResolver)
+			})
 		},
 	}
 

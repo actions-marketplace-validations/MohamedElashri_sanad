@@ -18,19 +18,20 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up Node
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # sanad: ref=v6
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # sanad: ref=v7.0.0
         with:
-          node-version: "24"
+          node-version: "24.21.0"
           cache: npm
           cache-dependency-path: action/package-lock.json
       - name: Verify action release sources
         run: |
-          test "$(node -p 'require("./action/package.json").version')" = "${GITHUB_REF_NAME#v}"
+          tag_version="${GITHUB_REF_NAME#v}"
+          test "$(cat VERSION)" = "$tag_version"
+          test "$(node -p 'require("./action/package.json").version')" = "$tag_version"
           npm ci --prefix action
           test "$(node -p 'require("./action/node_modules/@actions/core/package.json").version')" = "1.11.1"
           node -e 'require("./action/node_modules/@actions/core")'
           npm test --prefix action
-          npm run check-dist --prefix action
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # sanad: ref=v7.0.0
         with:

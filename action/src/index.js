@@ -7,7 +7,7 @@ const exec = require("@actions/exec");
 const { SANAD_VERSION, REPORT_VERSIONS } = require("./constants");
 const { changedManagedFiles, snapshotManagedFiles } = require("./files");
 const { installSanad } = require("./installer");
-const { parseBoolean, resolveConfigPath, resolveWorkingDirectory, validateInputs } = require("./inputs");
+const { parseBoolean, resolveConfigPath, resolveMode, resolveWorkingDirectory, validateInputs } = require("./inputs");
 const { annotateDecisions, parseReport, reportMetrics, summarizeReport } = require("./report");
 
 function setCommonOutputs(values = {}) {
@@ -23,13 +23,16 @@ function setCommonOutputs(values = {}) {
 }
 
 function actionInputs() {
+  const rawMode = core.getInput("mode").trim().toLowerCase();
+  const write = parseBoolean(core.getInput("write", { required: true }), "write");
+  const mode = resolveMode(rawMode, write);
   return validateInputs({
-    mode: core.getInput("mode", { required: true }).trim().toLowerCase(),
+    mode,
     config: core.getInput("config", { required: true }).trim(),
     workingDirectory: core.getInput("working-directory", { required: true }).trim(),
     fresh: parseBoolean(core.getInput("fresh", { required: true }), "fresh"),
     strict: parseBoolean(core.getInput("strict", { required: true }), "strict"),
-    write: parseBoolean(core.getInput("write", { required: true }), "write"),
+    write,
     token: core.getInput("token"),
   });
 }
@@ -80,6 +83,15 @@ async function workflowPaths(binary, inputs, workspace) {
   return config.workflow_paths;
 }
 
+function logStepSummary(mode, metrics, passed, write) {
+  const icon = passed ? "✅" : "❌";
+  const lines = [`${icon} sanad ${mode} — updates: ${metrics.updates}, pending cooldown: ${metrics.pending}, violations: ${metrics.violations}`];
+  if ((mode === "apply" || mode === "upgrade") && !write) {
+    lines.push("ℹ️  Preview only — set write: \"true\" to apply changes and commit them.");
+  }
+  core.info(lines.join("\n"));
+}
+
 async function run() {
   const inputs = actionInputs();
   const workspace = resolveWorkingDirectory(process.env.GITHUB_WORKSPACE, inputs.workingDirectory);
@@ -91,7 +103,7 @@ async function run() {
 
   if (inputs.mode === "setup") {
     setCommonOutputs({ passed: true });
-    core.info(`Installed Sanad ${SANAD_VERSION}`);
+    core.info(`✅ Installed Sanad ${SANAD_VERSION}`);
     return;
   }
 
@@ -123,6 +135,7 @@ async function run() {
   const passed = result.exitCode === 0 && (inputs.mode !== "check" || report.passed);
 
   annotateDecisions(inputs.mode, report);
+  logStepSummary(inputs.mode, metrics, passed, inputs.write);
   await summarizeReport(inputs.mode, report, SANAD_VERSION, passed);
   setCommonOutputs({
     passed,

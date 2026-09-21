@@ -58,8 +58,8 @@ type Entry struct {
 func DefaultOptions() Options {
 	return Options{
 		Tags:              TagTrack,
-		Branches:          BranchDeny,
-		Unpinned:          UnpinnedDeny,
+		Branches:          BranchTrack,
+		Unpinned:          UnpinnedLatestRelease,
 		ReusableWorkflows: true,
 		IgnoreActions:     []string{"./*", "docker://*"},
 		Cooldown:          7 * 24 * time.Hour,
@@ -297,7 +297,7 @@ func logicalRef(entry Entry) string {
 	if entry.LogicalRef != "" {
 		return entry.LogicalRef
 	}
-	if entry.Action.Ref == "" && entry.Candidate != nil {
+	if (entry.Action.Ref == "" || entry.Action.Pinned) && entry.Candidate != nil {
 		return entry.Candidate.Ref
 	}
 	if !entry.Action.Pinned {

@@ -22,7 +22,7 @@ test("runtime, release, and report contract versions stay aligned", () => {
   assert.equal(SANAD_VERSION, packageMetadata.version);
   assert.equal(packageMetadata.engines.node, ">=24");
   assert.match(metadata, /using: node24/);
-  assert.match(changelog, new RegExp(`^## ${packageMetadata.version.replaceAll(".", "\\.")} - Unreleased$`, "m"));
+  assert.match(changelog, new RegExp(`^## ${packageMetadata.version.replaceAll(".", "\\.")} - \\d{4}-\\d{2}-\\d{2}$`, "m"));
   assert.match(contracts, new RegExp(`checkReportVersion\\s*=\\s*${REPORT_VERSIONS.check}`));
   assert.match(contracts, new RegExp(`planReportVersion\\s*=\\s*${REPORT_VERSIONS.plan}`));
   assert.match(contracts, new RegExp(`upgradeReportVersion\\s*=\\s*${REPORT_VERSIONS.upgrade}`));

@@ -14,14 +14,14 @@ Configuration is strict: unknown keys and unsupported enum values are rejected. 
 ## Supported keys
 
 ```toml
-workflow_paths = [".github/workflows"]
+workflow_paths = [".github/workflows", "**/.github/workflows"]
 cooldown = "7d"
 cooldown_source = "source"
 
 [updates]
 tags = "track"
-branches = "deny"
-unpinned = "deny"
+branches = "track"
+unpinned = "latest-release"
 reusable_workflows = true
 
 [ignore]
@@ -48,7 +48,7 @@ constraint = ">= 4, < 6"
 
 ## `workflow_paths`
 
-Array of workflow files or directories. Directories are searched recursively for `.yml` and `.yaml` files. Paths must be relative and must not escape the repository root with `..`.
+Array of workflow files or directories. Directories are searched recursively for `.yml` and `.yaml` files. The special path `**/.github/workflows` discovers conventional workflow directories nested in action packages and test fixtures while ignoring `.git`, `node_modules`, and `vendor`. Paths must be relative and must not escape the repository root with `..`.
 
 ## `cooldown`
 
@@ -66,9 +66,9 @@ Controls which timestamp feeds cooldown evaluation:
 
 `tags` can be `track`, `pin-current`, or `deny`.
 
-`branches` can be `deny`, `pin-current`, or `track`.
+`branches` can be `track`, `pin-current`, or `deny`.
 
-`unpinned` can be `deny`, `default-branch`, or `latest-release`.
+`unpinned` can be `latest-release`, `default-branch`, or `deny`.
 
 `reusable_workflows` controls whether reusable workflow refs are allowed.
 

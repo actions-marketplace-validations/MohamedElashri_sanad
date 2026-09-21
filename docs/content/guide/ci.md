@@ -1,11 +1,17 @@
 +++
 title = "CI Usage"
-description = "Run Sanad in GitHub Actions to enforce pinned workflow dependencies and automate update pull requests."
+description = "Enforce pinned workflow dependencies and automate update pull requests using the Sanad GitHub Action."
 weight = 40
 template = "page"
 +++
 
-The shortest CI setup uses the bundled [GitHub Action](github-action.md). Use `sanad check` directly when you prefer to install and invoke the CLI yourself.
+The recommended CI setup uses the bundled GitHub Action. It installs the exact matching Sanad CLI, verifies the release, and translates output into inline annotations and a rich job summary automatically.
+
+For advanced use cases where you need direct CLI access, use `mode: setup` and invoke `sanad` in a subsequent `run:` step.
+
+## Enforce pinning on pull requests
+
+Add as a required status check — no `.sanad.toml` needed:
 
 ```yaml
 name: Check pinned actions
@@ -15,29 +21,72 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   sanad:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # sanad: ref=v7.0.1
+      - uses: MohamedElashri/sanad@58cdb34ef4470b656c2e7bfe91d7fd5ff56cb9ec
         with:
-          go-version: "1.26.x"
-
-      - name: Install sanad
-        run: go install github.com/MohamedElashri/sanad/cmd/sanad@latest
-
-      - name: Check workflow pins
-        run: sanad check --format json
+          token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## SARIF
+Use `fresh: "true"` to also resolve tracked refs and fail when an eligible update is available. Use `strict: "true"` to additionally fail on cooldown-pending candidates.
 
-To publish findings as GitHub code scanning annotations:
+## Automatic weekly update PR
+
+The built-in reusable workflow handles checkout, apply, commit, and PR creation — no scripting required:
 
 ```yaml
-      - name: Check workflow pins
+name: Update pinned actions
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # every Monday at 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    uses: MohamedElashri/sanad/.github/workflows/update-pr.yml@58cdb34ef4470b656c2e7bfe91d7fd5ff56cb9ec
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Pass `upgrade: true` to also bump logical refs according to the repository's upgrade policy:
+
+```yaml
+jobs:
+  update:
+    uses: MohamedElashri/sanad/.github/workflows/update-pr.yml@58cdb34ef4470b656c2e7bfe91d7fd5ff56cb9ec
+    with:
+      upgrade: true
+    secrets:
+      token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+See the [GitHub Action guide](../github-action/) for all available inputs (`branch`, `base`, `title`, `commit-message`, `config`).
+
+## SARIF code scanning
+
+Use `mode: setup` to install the CLI, then run it with the SARIF format and upload the results:
+
+```yaml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # sanad: ref=v7.0.1
+
+      - uses: MohamedElashri/sanad@58cdb34ef4470b656c2e7bfe91d7fd5ff56cb9ec
+        with:
+          mode: setup
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check and emit SARIF
         run: sanad check --format sarif > sanad.sarif
 
       - uses: github/codeql-action/upload-sarif@v4
@@ -46,55 +95,31 @@ To publish findings as GitHub code scanning annotations:
           sarif_file: sanad.sarif
 ```
 
-## Automated update pull requests
+## Apply updates in a custom step
 
-Use `sanad plan --pr-body-out` and `sanad apply --write --yes`, then create a pull request if files changed.
+When you need full control over the commit and push logic:
 
 ```yaml
-name: Update pinned actions
-
-on:
-  schedule:
-    - cron: "0 5 * * 1"
-  workflow_dispatch:
-
-permissions:
-  contents: write
-  pull-requests: write
-
-jobs:
-  update-actions:
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # sanad: ref=v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+      - name: Apply pin updates
+        id: sanad
+        uses: MohamedElashri/sanad@58cdb34ef4470b656c2e7bfe91d7fd5ff56cb9ec
         with:
-          go-version: "1.26.x"
+          write: "true"
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: go install github.com/MohamedElashri/sanad/cmd/sanad@latest
-      - run: sanad plan --pr-body-out sanad-pr-body.md
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: sanad apply --write --yes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create pull request
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and push
+        if: steps.sanad.outputs.changed == 'true'
         run: |
-          if ! git diff --quiet; then
-            git checkout -b sanad/update-action-pins
-            git add .github/workflows .github/sanad.lock.json .sanad.toml
-            git commit -m "ci: update pinned GitHub Actions"
-            git push --force-with-lease origin sanad/update-action-pins
-            gh pr create \
-              --title "ci: update pinned GitHub Actions" \
-              --body-file sanad-pr-body.md \
-              --base main \
-              --head sanad/update-action-pins
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/
+          git commit -m "ci: update pinned actions"
+          git push
 ```
+
+Setting `write: "true"` without an explicit `mode` automatically defaults to `mode: apply`.

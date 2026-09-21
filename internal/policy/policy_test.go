@@ -54,7 +54,7 @@ func TestEvaluatePolicyDefaults(t *testing.T) {
 			want: DecisionPending,
 		},
 		{
-			name: "branch denied by default",
+			name: "branch tracked by default",
 			entry: Entry{
 				Action: actions.Parse("owner/repo@main"),
 				Candidate: &githubresolver.ResolvedRef{
@@ -67,12 +67,12 @@ func TestEvaluatePolicyDefaults(t *testing.T) {
 				},
 				Now: now,
 			},
-			want: DecisionErrorBranchDenied,
+			want: DecisionUpdate,
 		},
 		{
 			name:  "unpinned action denied by default",
 			entry: Entry{Action: actions.Parse("owner/repo"), Now: now},
-			want:  DecisionErrorUnpinned,
+			want:  DecisionErrorUnresolved,
 		},
 		{
 			name:  "docker action skipped",
@@ -154,9 +154,9 @@ func TestEvaluatePolicyOverrides(t *testing.T) {
 	old := now.Add(-15 * 24 * time.Hour)
 	sha := "11bd71901bbe5b1630ceea73d27597364c9af683"
 
-	t.Run("branch tracking can be enabled", func(t *testing.T) {
+	t.Run("branch denying can be enabled", func(t *testing.T) {
 		opts := DefaultOptions()
-		opts.Branches = BranchTrack
+		opts.Branches = BranchDeny
 		got := Evaluate(Entry{
 			Action: actions.Parse("owner/repo@main"),
 			Candidate: &githubresolver.ResolvedRef{
@@ -169,8 +169,8 @@ func TestEvaluatePolicyOverrides(t *testing.T) {
 			},
 			Now: now,
 		}, opts)
-		if got.Kind != DecisionUpdate {
-			t.Fatalf("Kind = %q, want %q (%s)", got.Kind, DecisionUpdate, got.Reason)
+		if got.Kind != DecisionErrorBranchDenied {
+			t.Fatalf("Kind = %q, want %q (%s)", got.Kind, DecisionErrorBranchDenied, got.Reason)
 		}
 	})
 

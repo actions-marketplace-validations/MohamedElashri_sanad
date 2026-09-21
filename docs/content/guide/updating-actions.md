@@ -7,6 +7,12 @@ template = "page"
 
 Sanad separates two workflows that are easy to blur together.
 
+By default, Sanad scans `.github/workflows` and nested conventional
+`.github/workflows` directories. This also covers GitHub Action repositories
+that keep integration fixtures under an `action/` directory without scanning
+unrelated YAML files in JavaScript dependencies. Configure `workflow_paths` or
+pass `--workflows` to use a different scope.
+
 `sanad apply` keeps tracking the current logical ref. If a workflow says a pinned action tracks `v4`, apply checks where `v4` points now and updates only the pinned SHA when policy allows it.
 
 `sanad upgrade` intentionally changes the logical ref itself. Use it when you want to move `actions/checkout` from `v4` to `v5`.

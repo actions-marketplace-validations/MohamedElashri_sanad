@@ -309,6 +309,9 @@ func validateWorkflowPaths(paths []string) error {
 		if filepath.IsAbs(path) {
 			return fmt.Errorf("%q must be relative to the repository root", path)
 		}
+		if path == "**/.github/workflows" {
+			continue
+		}
 		cleaned := filepath.Clean(path)
 		if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("%q must stay inside the repository root", path)

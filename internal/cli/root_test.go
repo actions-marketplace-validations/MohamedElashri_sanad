@@ -95,7 +95,7 @@ func TestApplyExecutes(t *testing.T) {
 	}
 }
 
-func TestBareCommandChecksWithoutConfig(t *testing.T) {
+func TestBareCommandStartsWithoutConfig(t *testing.T) {
 	withTempWorkingDir(t)
 	writeApplyWorkflow(t, "jobs:\n  test:\n    steps:\n      - uses: ./.github/actions/local\n")
 	var out bytes.Buffer
@@ -106,7 +106,7 @@ func TestBareCommandChecksWithoutConfig(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("bare sanad returned error: %v", err)
 	}
-	if !strings.Contains(out.String(), "comply with sanad policy") {
+	if !strings.Contains(out.String(), "No workflow updates to apply.") {
 		t.Fatalf("unexpected output: %s", out.String())
 	}
 }

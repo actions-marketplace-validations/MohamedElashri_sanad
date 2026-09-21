@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const path = require("node:path");
+const core = require("@actions/core");
 
 const MODES = new Set(["check", "plan", "apply", "upgrade", "setup"]);
 
@@ -39,12 +40,24 @@ function resolveConfigPath(workingDirectory, requested) {
   return requested;
 }
 
+// Resolve the effective mode:
+//   If the user set mode explicitly, use it.
+//   If write=true and mode is blank, default to "apply" (PR-ready write).
+//   Otherwise default to "check".
+function resolveMode(rawMode, write) {
+  const trimmed = String(rawMode || "").trim().toLowerCase();
+  if (trimmed) return trimmed;
+  return write ? "apply" : "check";
+}
+
 function validateInputs(values) {
   if (!MODES.has(values.mode)) {
     throw new Error(`mode must be one of: ${Array.from(MODES).join(", ")}`);
   }
-  if (values.mode !== "check" && (values.fresh || values.strict)) {
-    throw new Error("fresh and strict are valid only with mode=check");
+  // fresh and strict only do anything on check; warn rather than error for other modes.
+  if (values.mode !== "check") {
+    if (values.fresh) core.warning("fresh is only meaningful with mode=check; ignoring");
+    if (values.strict) core.warning("strict is only meaningful with mode=check; ignoring");
   }
   if (values.mode !== "apply" && values.mode !== "upgrade" && values.write) {
     throw new Error("write is valid only with mode=apply or mode=upgrade");
@@ -52,4 +65,4 @@ function validateInputs(values) {
   return values;
 }
 
-module.exports = { MODES, parseBoolean, resolveConfigPath, resolveWorkingDirectory, validateInputs };
+module.exports = { MODES, parseBoolean, resolveConfigPath, resolveMode, resolveWorkingDirectory, validateInputs };

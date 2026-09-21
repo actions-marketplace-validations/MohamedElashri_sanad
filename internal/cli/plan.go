@@ -349,7 +349,7 @@ func resolvePlanCandidate(ctx context.Context, resolver planResolver, parsed act
 		return nil, nil
 	}
 
-	if parsed.Ref == "" && logicalRef == "" {
+	if (parsed.Ref == "" || parsed.Pinned) && logicalRef == "" {
 		switch unpinned {
 		case policy.UnpinnedDefaultBranch:
 			defaultBranch, ok := resolver.(defaultBranchResolver)
@@ -401,7 +401,7 @@ func shouldResolvePlanCandidate(parsed actions.ParsedAction, logicalRef string, 
 	default:
 		return false
 	}
-	if parsed.Ref == "" {
+	if parsed.Ref == "" || (parsed.Pinned && logicalRef == "") {
 		return logicalRef != "" || unpinned == policy.UnpinnedDefaultBranch || unpinned == policy.UnpinnedLatestRelease
 	}
 	if parsed.Pinned {

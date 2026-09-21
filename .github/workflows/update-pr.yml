@@ -96,7 +96,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git switch -C "$UPDATE_BRANCH"
-          git add --all -- .github/workflows
+          git add --all -- .github/workflows ':(glob)**/.github/workflows/**'
           if test -e .github/sanad.lock.json || git ls-files --error-unmatch .github/sanad.lock.json >/dev/null 2>&1; then
             git add --all -- .github/sanad.lock.json
           fi
